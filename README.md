@@ -1,10 +1,10 @@
-# Sharer
-========
+Sharer
+======
 
-## A personal and configurable file/link sharer
+### A personal and configurable file/link sharer
 
 ## Deploy
-This app uses App Engine as the underlying system. The App Engine free tier should suffice for personal usage.
+This app uses [Google App Engine](https://cloud.google.com/appengine/) as the underlying system. The Google App Engine free tier should suffice for personal usage.
 1. Install the gcloud sdk
     - https://cloud.google.com/sdk/install
 2. Login to gcloud
@@ -17,7 +17,7 @@ This app uses App Engine as the underlying system. The App Engine free tier shou
 I personally live in the terminal, so it has been made to be used terminal first. Maybe one day I'll add a Web UI, but this works just fine.
 Here are the functions that I use in ZSH. Your mileage may vary:
 
-These snippets have been adapted from ones provided by (Dutchcoders)[https://dutchcoders.io] for (transfer.sh)[https://transfer.sh]:
+These snippets have been adapted from ones provided by [Dutchcoders](https://dutchcoders.io) for [transfer.sh](https://transfer.sh):
 ```bash
 share() { 
     # check arguments
@@ -48,15 +48,15 @@ share() {
             # zip directory and transfer
             zipfile=$( mktemp -t transferXXX.zip )
             cd $(dirname $file) && zip -r -q - $(basename $file) >> $zipfile
-            curl -H "X-Authorization: c41c309530ccb4ec2ba8e957cc84108c136aa5af41f3e6e2379bba54681a0666" --progress-bar --upload-file "$zipfile" "https://s.mik.qa/api/upload/$basefile.zip?s=1&time=$2&clicks=$3" >> $tmpfile
+            curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "$zipfile" "https://HOSTNAME/api/upload/$basefile.zip?s=1&time=$2&clicks=$3" >> $tmpfile
             rm -f $zipfile
         else
             # transfer file
-            curl -H "X-Authorization: c41c309530ccb4ec2ba8e957cc84108c136aa5af41f3e6e2379bba54681a0666" --progress-bar --upload-file "$file" "https://s.mik.qa/api/upload/$basefile?s=1&time=$2&clicks=$3" >> $tmpfile
+            curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "$file" "https://HOSTNAME/api/upload/$basefile?s=1&time=$2&clicks=$3" >> $tmpfile
         fi
     else 
         # transfer pipe
-        curl -H "X-Authorization: c41c309530ccb4ec2ba8e957cc84108c136aa5af41f3e6e2379bba54681a0666" --progress-bar --upload-file "-" "https://s.mik.qa/api/upload/$file?s=1&time=$2&clicks=$3" >> $tmpfile
+        curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "-" "https://HOSTNAME/api/upload/$file?s=1&time=$2&clicks=$3" >> $tmpfile
     fi
    
     # cat output link
@@ -78,12 +78,12 @@ linkshare() {
 
     if tty -s; 
     then
-        curl -H "X-Authorization: c41c309530ccb4ec2ba8e957cc84108c136aa5af41f3e6e2379bba54681a0666" -X "POST" "https://s.mik.qa/api/shorten?s=1&url=$1&time=$2&clicks=$3"
+        curl -H "X-Authorization: AUTH_TOKEN" -X "POST" "https://HOSTNAME/api/shorten?s=1&url=$1&time=$2&clicks=$3"
     fi
 }
 ```
 
-Update your own hostname (`s;https://s.mik.qa;YOUR_HOST_HERE`) and auth key `s/c41c309530ccb4ec2ba8e957cc84108c136aa5af41f3e6e2379bba54681a0666/YOUR_AUTH_KEY`
+Update your own hostname (`s/HOSTNAME/YOUR_HOST_HERE/g`) and auth key `s/AUTH_TOKEN/YOUR_AUTH_KEY/g`
 
 Example usages are as follows:
 
