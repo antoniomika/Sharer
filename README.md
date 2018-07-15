@@ -19,46 +19,77 @@ Here are the functions that I use in ZSH. Your mileage may vary:
 
 These snippets have been adapted from ones provided by [Dutchcoders](https://dutchcoders.io) for [transfer.sh](https://transfer.sh):
 ```bash
-share() { 
+share() {
     # check arguments
-    if [ $# -eq 0 ]; 
-    then 
-        echo "No arguments specified. Usage:\necho share /tmp/test.md 10m 10 #(clicks)\ncat /tmp/test.md | share test.md 10m 10 #(clicks)"
+    if [ $# -eq 0 ];
+    then
+        echo "No arguments specified. Usage:\necho share /tmp/test.md 10m 10 encrypt #(file duration clicks encrypt)\ncat /tmp/test.md | share test.md 10m 10 encrypt #(filename duration clicks encrypt)"
         return 1
     fi
 
     # get temporarily filename, output is written to this file show progress can be showed
     tmpfile=$( mktemp -t transferXXX )
-    
+
     # upload stdin or file
     file=$1
+    expiresin=$2
+    expireclicks=$3
+    encrypt=$4
+    host="https://HOSTNAME"
+    authorization="AUTH_TOKEN"
 
-    if tty -s; 
-    then 
-        basefile=$(basename "$file" | sed -e 's/[^a-zA-Z0-9._-]/-/g') 
+    if tty -s;
+    then
+        basefile=$(basename "$file" | sed -e 's/[^a-zA-Z0-9._-]/-/g')
 
         if [ ! -e $file ];
         then
             echo "File $file doesn't exists."
             return 1
         fi
-        
+
         if [ -d $file ];
         then
             # zip directory and transfer
             zipfile=$( mktemp -t transferXXX.zip )
-            cd $(dirname $file) && zip -r -q - $(basename $file) >> $zipfile
-            curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "$zipfile" "https://HOSTNAME/api/upload/$basefile.zip?s=1&time=$2&clicks=$3" >> $tmpfile
+            cd $(dirname $file) && zip -r -q - $(basename $file) > $zipfile
+            basefile="$basefile.zip"
+
+            if [ ! -z "$encrypt" ];
+            then
+                gpg --no-symkey-cache --cipher-algo aes256 -c $zipfile
+                originalfile=$zipfile
+                zipfile="$zipfile.gpg"
+                basefile="$basefile.gpg"
+            fi
+
+            curl -H "X-Authorization: $authorization" --progress-bar --upload-file "$zipfile" "$host/api/upload/$basefile?s=1&time=$expiresin&clicks=$expireclicks" >> $tmpfile
             rm -f $zipfile
+
+            if [ ! -z "$encrypt" ];
+            then
+                rm -f $originalfile
+            fi
         else
+            if [ ! -z "$encrypt" ];
+            then
+                gpg --no-symkey-cache --cipher-algo aes256 -c $file
+                file="$file.gpg"
+                basefile="$basefile.gpg"
+            fi
+
             # transfer file
-            curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "$file" "https://HOSTNAME/api/upload/$basefile?s=1&time=$2&clicks=$3" >> $tmpfile
+            curl -H "X-Authorization: $authorization" --progress-bar --upload-file "$file" "$host/api/upload/$basefile?s=1&time=$expiresin&clicks=$expireclicks" >> $tmpfile
+            if [ ! -z "$encrypt" ];
+            then
+                rm -f $file
+            fi
         fi
-    else 
+    else
         # transfer pipe
-        curl -H "X-Authorization: AUTH_TOKEN" --progress-bar --upload-file "-" "https://HOSTNAME/api/upload/$file?s=1&time=$2&clicks=$3" >> $tmpfile
+        curl -H "X-Authorization: $authorization" --progress-bar --upload-file "-" "$host/api/upload/$file?s=1&time=$expiresin&clicks=$expireclicks" >> $tmpfile
     fi
-   
+
     # cat output link
     cat $tmpfile
 
@@ -68,17 +99,23 @@ share() {
 ```
 
 ```bash
-linkshare() { 
+linkshare() {
+    link=$1
+    expiresin=$2
+    expireclicks=$3
+    host="https://HOSTNAME"
+    authorization="AUTH_TOKEN"
+
     # check arguments
-    if [ $# -eq 0 ]; 
-    then 
+    if [ $# -eq 0 ];
+    then
         echo "No arguments specified. Usage:\necho linkshare https://google.com 10m 10 #(clicks)"
         return 1
     fi
 
-    if tty -s; 
+    if tty -s;
     then
-        curl -H "X-Authorization: AUTH_TOKEN" -X "POST" "https://HOSTNAME/api/shorten?s=1&url=$1&time=$2&clicks=$3"
+        curl -H "X-Authorization: $authorization" -X "POST" "$host/api/shorten?s=1&url=$link&time=$expiresin&clicks=$expireclicks"
     fi
 }
 ```
