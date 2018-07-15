@@ -1,0 +1,14 @@
+runtime: go
+api_version: go1
+
+handlers:
+- url: /.*
+  script: _go_app
+  secure: always
+
+env_variables:
+  REDIRECT_MAIN: "https://antoniomika.me"
+  SESSION_NAME: "MainSession"
+  SESSION_SECRET: "SessionSecret"
+  ADMIN_EMAIL: "s@mik.qa"
+  ADMIN_PASS: "AdminPass"
