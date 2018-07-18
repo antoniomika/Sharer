@@ -151,47 +151,51 @@
         require(["//cdn.firebase.com/libs/firepad/1.5.0/firepad.min.js"], function(Firepad) {
             var loadedText = getUrlParameter("load");
             var defaultText = "";
+            var loadFirepad = true;
 
             if (loadedText) {
                 if (isValidURL(loadedText)) {
+                    loadFirepad = false;
                     $.get("https://cors-anywhere.herokuapp.com/" + loadedText, function(data) {
                         defaultText = data;
 
-                        firepad = Firepad.fromACE(firepadRef, editor, {
-                            defaultText: defaultText
-                        });
+                        setupFirepad(Firepad, firepadRef, editor, defaultText)
                     });
                 } else {
                     defaultText = loadedText;
                 }
             }
 
-            if (typeof firepad === "undefined") {
-                firepad = Firepad.fromACE(firepadRef, editor, {
-                    defaultText: defaultText
-                });
+            if (loadFirepad && typeof firepad === "undefined") {
+                setupFirepad(Firepad, firepadRef, editor, defaultText);
             }
+        });
+    }
 
-            firepad.on("ready", function(e) {
-                firebase.database().ref(firepadRef).child("users").on("value", function(snap) {
-                    var val = snap.val();
+    function setupFirepad(Firepad, firepadRef, editor, defaultText) {
+        firepad = Firepad.fromACE(firepadRef, editor, {
+            defaultText: defaultText
+        });
 
-                    if (val) {
-                        $("#userNumber").text(Object.keys(val).length);
-                    }
-                });
+        firepad.on("ready", function(e) {
+            firebase.database().ref(firepadRef).child("users").on("value", function(snap) {
+                var val = snap.val();
 
-                firebase.database().ref(firepadRef).child("config").on("value", function(snap) {
-                    var val = snap.val();
+                if (val) {
+                    $("#userNumber").text(Object.keys(val).length);
+                }
+            });
 
-                    if (val) {
-                        editor.setOptions(val);
-                    }
+            firebase.database().ref(firepadRef).child("config").on("value", function(snap) {
+                var val = snap.val();
 
-                    setInterval(function() {
-                        firebase.database().ref(firepadRef).child("config").set(JSON.parse(JSON.stringify(editor.getOptions())));
-                    }, 1000);
-                });
+                if (val) {
+                    editor.setOptions(val);
+                }
+
+                setInterval(function() {
+                    firebase.database().ref(firepadRef).child("config").set(JSON.parse(JSON.stringify(editor.getOptions())));
+                }, 1000);
             });
         });
     }
