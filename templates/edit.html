@@ -5,10 +5,6 @@
     <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
     <title>Share Editor</title>
 
-    <script>
-        ace = true
-    </script>
-
     <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-app.js"></script>
     <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-database.js"></script>
@@ -124,6 +120,20 @@
         require(["//cdn.firebase.com/libs/firepad/1.5.0/firepad.min.js"], function(Firepad) {
             firepad = Firepad.fromACE(firepadRef, editor, {
                 defaultText: ''
+            });
+
+            firepad.on('ready', function(e) {
+                firebase.database().ref(firepadRef).child("config").on('value', function(snap) {
+                    var val = snap.val();
+
+                    if (val) {
+                        editor.setOptions(val);
+                    }
+
+                    setInterval(function() {
+                        firebase.database().ref(firepadRef).child("config").set(JSON.parse(JSON.stringify(editor.getOptions())));
+                    }, 1000);
+                });
             });
         });
     }
