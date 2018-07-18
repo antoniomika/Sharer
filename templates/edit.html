@@ -85,6 +85,12 @@
         }
     };
 
+    var getLocation = function(href) {
+        var l = document.createElement("a");
+        l.href = href;
+        return l;
+    };
+
     function isValidURL(str) {
         var pattern = new RegExp('^(https?:\\/\\/)?'+ // protocol
                 '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|'+ // domain name
@@ -164,7 +170,13 @@
             if (loadedText) {
                 if (isValidURL(loadedText)) {
                     loadFirepad = false;
-                    $.get("https://cors-anywhere.herokuapp.com/" + loadedText, function(data) {
+                    var domain = "https://cors-anywhere.herokuapp.com/" + loadedText;
+
+                    if (getLocation(loadedText).hostname === window.location.hostname) {
+                        domain = loadedText;
+                    }
+
+                    $.get(domain, function(data) {
                         defaultText = data;
 
                         setupFirepad(Firepad, firepadRef, editor, defaultText)
