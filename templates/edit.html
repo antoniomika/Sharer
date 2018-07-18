@@ -48,6 +48,14 @@
             padding-left: 5px;
         }
 
+        .user-numbers {
+            color: gray;
+            position: absolute;
+            right: 20%;
+            border-left: 2px solid;
+            padding-left: 5px;
+        }
+
         a.powered-by-firepad {
             display: none;
         }
@@ -56,7 +64,9 @@
 <body>
 
 <pre id="editor"></pre>
-<div id="statusBar">Press Ctrl-q to open the settings menu.</div>
+<div id="statusBar">Press Ctrl-q to open the settings menu.
+    <div class="user-numbers" style="display: inline-block;"><code id="userNumber">1</code> user(s) connected.</div>
+</div>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.5/require.min.js"></script>
 <script>
@@ -72,12 +82,12 @@
 
     function getFirepadRef() {
         var ref = firebase.database().ref();
-        var hash = window.location.hash.replace(/#/g, '');
+        var hash = window.location.hash.replace(/#/g, "");
         if (hash) {
             ref = ref.child(hash);
         } else {
             ref = ref.push(); // generate unique location.
-            window.location = window.location + '#' + ref.key; // add it as a hash to the URL.
+            window.location = window.location + "#" + ref.key; // add it as a hash to the URL.
         }
         return ref;
     }
@@ -91,7 +101,7 @@
         window.ace = ace;
 
         var editor = ace.edit("editor");
-        ace.require('ace/ext/settings_menu').init(editor);
+        ace.require("ace/ext/settings_menu").init(editor);
 
         var StatusBar = ace.require("ace/ext/statusbar").StatusBar;
         var statusBar = new StatusBar(editor, document.getElementById("statusBar"));
@@ -119,11 +129,19 @@
     function loadFirepad(firepadRef, editor) {
         require(["//cdn.firebase.com/libs/firepad/1.5.0/firepad.min.js"], function(Firepad) {
             firepad = Firepad.fromACE(firepadRef, editor, {
-                defaultText: ''
+                defaultText: ""
             });
 
-            firepad.on('ready', function(e) {
-                firebase.database().ref(firepadRef).child("config").on('value', function(snap) {
+            firepad.on("ready", function(e) {
+                firebase.database().ref(firepadRef).child("users").on("value", function(snap) {
+                    var val = snap.val();
+
+                    if (val) {
+                        $("#userNumber").text(Object.keys(val).length);
+                    }
+                });
+
+                firebase.database().ref(firepadRef).child("config").on("value", function(snap) {
                     var val = snap.val();
 
                     if (val) {
