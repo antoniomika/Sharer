@@ -30,6 +30,15 @@ type User struct {
 	Password string
 }
 
+type FirebaseConfig struct {
+	ApiKey string
+	AuthDomain string
+	DatabaseURL string
+	ProjectId string
+	StorageBucket string
+	MessagingSenderId string
+}
+
 type Link struct {
 	Url          string
 	Token        string

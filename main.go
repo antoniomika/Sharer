@@ -2,6 +2,7 @@ package main
 
 import (
 	"net/http"
+	"html/template"
 
 	"github.com/gorilla/mux"
 	"google.golang.org/appengine"
@@ -9,6 +10,18 @@ import (
 	"google.golang.org/appengine/datastore"
 	"os"
 	"strings"
+)
+
+var (
+	templ = template.Must(template.ParseFiles("templates/edit.html"))
+	firebaseConfig = FirebaseConfig{
+		ApiKey: os.Getenv("FIREBASE_APIKEY"),
+		AuthDomain: os.Getenv("FIREBASE_AUTHDOMAIN"),
+		DatabaseURL: os.Getenv("FIREBASE_DATABASEURL"),
+		ProjectId: os.Getenv("FIREBASE_PROJECTID"),
+		StorageBucket: os.Getenv("FIREBASE_STORAGEBUCKET"),
+		MessagingSenderId: os.Getenv("FIREBASE_MESSAGINGSENDERID"),
+	}
 )
 
 func main() {
@@ -20,6 +33,7 @@ func main() {
 	apiRouter.Use(authMiddleware)
 
 	router.HandleFunc("/", handleIndex).Methods("GET")
+	router.HandleFunc("/e", handleEdit).Methods("GET")
 
 	router.HandleFunc("/s/{id}", loadData).Methods("GET")
 	router.HandleFunc("/u/{id}", loadData).Methods("GET")
@@ -35,6 +49,10 @@ func main() {
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
 	http.Redirect(w, r, os.Getenv("REDIRECT_MAIN"), http.StatusFound)
+}
+
+func handleEdit(w http.ResponseWriter, r *http.Request) {
+	templ.Execute(w, firebaseConfig)
 }
 
 func loadData(w http.ResponseWriter, r *http.Request) {

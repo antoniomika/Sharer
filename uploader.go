@@ -193,6 +193,26 @@ func uploadDelete(w http.ResponseWriter, r *http.Request, ctx context.Context) {
 			return
 		}
 	} else {
+		bucket, err := file.DefaultBucketName(ctx)
+		if err != nil {
+			returnErr(w, r, err, 0)
+			return
+		}
+
+		client, err := storage.NewClient(ctx)
+		if err != nil {
+			returnErr(w, r, err, 0)
+			return
+		}
+		defer client.Close()
+
+		bucketHandle := client.Bucket(bucket)
+
+		if err := bucketHandle.Object(upload.Filename).Delete(ctx); err != nil {
+			returnErr(w, r, err, 0)
+			return
+		}
+
 		if err := datastore.Delete(ctx, key); err != nil {
 			returnErr(w, r, err, 0)
 			return
