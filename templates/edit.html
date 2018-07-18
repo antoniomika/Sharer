@@ -70,6 +70,27 @@
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.5/require.min.js"></script>
 <script>
+    var getUrlParameter = function getUrlParameter(sParam) {
+        var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+                sURLVariables = sPageURL.split('&'),
+                sParameterName,
+                i;
+
+        for (i = 0; i < sURLVariables.length; i++) {
+            sParameterName = sURLVariables[i].split('=');
+
+            if (sParameterName[0] === sParam) {
+                return sParameterName[1] === undefined ? true : sParameterName[1];
+            }
+        }
+    };
+
+    function isValidURL(str) {
+        var a  = document.createElement('a');
+        a.href = str;
+        return (a.host && a.host != window.location.host);
+    }
+
     var config = {
         apiKey: "{{.ApiKey}}",
         authDomain: "{{.AuthDomain}}",
@@ -128,9 +149,28 @@
 
     function loadFirepad(firepadRef, editor) {
         require(["//cdn.firebase.com/libs/firepad/1.5.0/firepad.min.js"], function(Firepad) {
-            firepad = Firepad.fromACE(firepadRef, editor, {
-                defaultText: ""
-            });
+            var loadedText = getUrlParameter("load");
+            var defaultText = "";
+
+            if (loadedText) {
+                if (isValidURL(loadedText)) {
+                    $.get("https://cors-anywhere.herokuapp.com/" + loadedText, function(data) {
+                        defaultText = data;
+
+                        firepad = Firepad.fromACE(firepadRef, editor, {
+                            defaultText: defaultText
+                        });
+                    });
+                } else {
+                    defaultText = loadedText;
+                }
+            }
+
+            if (typeof firepad === "undefined") {
+                firepad = Firepad.fromACE(firepadRef, editor, {
+                    defaultText: defaultText
+                });
+            }
 
             firepad.on("ready", function(e) {
                 firebase.database().ref(firepadRef).child("users").on("value", function(snap) {
