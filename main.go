@@ -48,6 +48,11 @@ func main() {
 }
 
 func handleIndex(w http.ResponseWriter, r *http.Request) {
+	if r.URL.Hostname() == os.Getenv("EDITOR_HOSTNAME") {
+		handleEdit(w, r)
+		return
+	}
+
 	http.Redirect(w, r, os.Getenv("REDIRECT_MAIN"), http.StatusFound)
 }
 
