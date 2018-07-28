@@ -135,10 +135,11 @@
                 var val = snap.val();
                 for (var elem in val) {
                     var pad = val[elem];
+                    var editorUrl = "{{ .EditorUrl }}";
 
                     $("#pads-table > tbody").append(`
                         <tr>
-                            <th><a href="${window.location.protocol + '//{{ .EditorUrl }}/#' + elem}" target="_blank">${elem}</a></th>
+                            <th><a href="${window.location.protocol + '\/\/' + editorUrl + '/#' + elem}" target="_blank">${elem}</a></th>
                             <td><button onclick="deleteToken('pad', '${elem}')" class="btn btn-primary">Delete</button></td>
                             <td><pre>${JSON.stringify(pad.checkpoint, null, 4)}</pre></td>
                             <td><pre>${JSON.stringify(pad.config, null, 4)}</pre></td>
