@@ -87,7 +87,7 @@
                                 <td>${(new Date(upload.ExpireTime)).toLocaleString()}</td>
                                 <td>${upload.ExpireClicks}</td>
                                 <td>${upload.Clicks}</td>
-                                <td>${upload.Clickers ? upload.Clickers.join(', ') : 'N/A'}</td>
+                                <td><pre>${JSON.stringify(upload.Clickers, null, 4)}</pre></td>
                                 <td><button onclick="deleteToken('upload', '${upload.Token}')" class="btn btn-primary">Delete</button></td>
                             </tr>
                         `);
@@ -116,7 +116,7 @@
                                 <td>${(new Date(link.ExpireTime)).toLocaleString()}</td>
                                 <td>${link.ExpireClicks}</td>
                                 <td>${link.Clicks}</td>
-                                <td>${link.Clickers ? link.Clickers.join(', ') : 'N/A'}</td>
+                                <td><pre>${JSON.stringify(link.Clickers, null, 4)}</pre></td>
                                 <td><button onclick="deleteToken('link', '${link.Token}')" class="btn btn-primary">Delete</button></td>
                             </tr>
                         `);
