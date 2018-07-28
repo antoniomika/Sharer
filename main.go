@@ -14,6 +14,7 @@ import (
 
 var (
 	templ = template.Must(template.ParseFiles("templates/edit.html"))
+	adminTempl = template.Must(template.ParseFiles("templates/admin.html"))
 	firebaseConfig = FirebaseConfig{
 		ApiKey: os.Getenv("FIREBASE_APIKEY"),
 		AuthDomain: os.Getenv("FIREBASE_AUTHDOMAIN"),
@@ -21,6 +22,7 @@ var (
 		ProjectId: os.Getenv("FIREBASE_PROJECTID"),
 		StorageBucket: os.Getenv("FIREBASE_STORAGEBUCKET"),
 		MessagingSenderId: os.Getenv("FIREBASE_MESSAGINGSENDERID"),
+		EditorUrl: os.Getenv("EDITOR_HOSTNAME"),
 	}
 )
 
@@ -34,6 +36,7 @@ func main() {
 
 	router.HandleFunc("/", handleIndex).Methods("GET")
 	router.HandleFunc("/e", handleEdit).Methods("GET")
+	router.Handle("/admin", authMiddleware(http.HandlerFunc(handleAdmin)))
 
 	router.HandleFunc("/s/{id}", loadData).Methods("GET")
 	router.HandleFunc("/u/{id}", loadData).Methods("GET")
@@ -58,6 +61,10 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 
 func handleEdit(w http.ResponseWriter, r *http.Request) {
 	templ.Execute(w, firebaseConfig)
+}
+
+func handleAdmin(w http.ResponseWriter, r *http.Request) {
+	adminTempl.Execute(w, firebaseConfig)
 }
 
 func loadData(w http.ResponseWriter, r *http.Request) {

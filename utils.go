@@ -37,6 +37,7 @@ type FirebaseConfig struct {
 	ProjectId string
 	StorageBucket string
 	MessagingSenderId string
+	EditorUrl string
 }
 
 type Link struct {
