@@ -141,9 +141,11 @@
                         <tr>
                             <th><a href="${window.location.protocol + '\/\/' + editorUrl + '/#' + elem}" target="_blank">${elem}</a></th>
                             <td><button onclick="deleteToken('pad', '${elem}')" class="btn btn-primary">Delete</button></td>
+                            <td><pre>${JSON.stringify(pad.creatorIP, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.accessorIPs, null, 4)}</pre></td>
                             <td><pre>${JSON.stringify(pad.checkpoint, null, 4)}</pre></td>
-                            <td><pre>${JSON.stringify(pad.config, null, 4)}</pre></td>
                             <td><pre>${JSON.stringify(pad.history, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.config, null, 4)}</pre></td>
                         </tr>
                     `);
                 }
@@ -228,9 +230,11 @@
                 <tr id="table-head-row-3">
                     <th>ID</th>
                     <th>Delete</th>
+                    <th>Creator IP</th>
+                    <th>Accessor IPs</th>
                     <th>Checkpoint</th>
-                    <th>Config</th>
                     <th>History</th>
+                    <th>Config</th>
                 </tr>
                 </thead>
                 <tbody>
