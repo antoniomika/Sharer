@@ -115,6 +115,8 @@
         }
     }
 
+    var ip = "{{.IPAddress}}";
+
     var config = {
         apiKey: "{{.ApiKey}}",
         authDomain: "{{.AuthDomain}}",
@@ -210,6 +212,22 @@
         });
 
         firepad.on("ready", function (e) {
+            firebase.database().ref(firepadRef).child("creatorIP").once('value').then(function(snap) {
+                var val = snap.val();
+
+                if (!val) {
+                    firebase.database().ref(firepadRef).child("creatorIP").set(ip);
+                    firebase.database().ref(firepadRef).child("accessorIPs").set([ip]);
+                } else {
+                    firebase.database().ref(firepadRef).child("accessorIPs").once("value", function (snap2) {
+                        var val2 = snap2.val();
+                        val2.push(ip);
+
+                        firebase.database().ref(firepadRef).child("accessorIPs").set(val2);
+                    });
+                }
+            });
+
             firebase.database().ref(firepadRef).child("users").on("value", function (snap) {
                 var val = snap.val();
 

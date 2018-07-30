@@ -23,6 +23,7 @@ var (
 		StorageBucket: os.Getenv("FIREBASE_STORAGEBUCKET"),
 		MessagingSenderId: os.Getenv("FIREBASE_MESSAGINGSENDERID"),
 		EditorUrl: os.Getenv("EDITOR_HOSTNAME"),
+		IPAddress: "",
 	}
 )
 
@@ -60,6 +61,7 @@ func handleIndex(w http.ResponseWriter, r *http.Request) {
 }
 
 func handleEdit(w http.ResponseWriter, r *http.Request) {
+	firebaseConfig.IPAddress = r.RemoteAddr
 	templ.Execute(w, firebaseConfig)
 }
 
