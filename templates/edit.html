@@ -240,12 +240,18 @@
                 var val = snap.val();
 
                 if (val) {
+                    window.prevEditorOptions = val;
                     editor.setOptions(val);
                 }
 
-                setInterval(function () {
-                    firebase.database().ref(firepadRef).child("config").set(JSON.parse(JSON.stringify(editor.getOptions())));
-                }, 1000);
+                if (typeof window.editorSettingsUpdater === 'undefined') {
+                    window.editorSettingsUpdater = setInterval(function() {
+                        if (typeof window.prevEditorOptions === 'undefined' || JSON.stringify(editor.getOptions()) !== JSON.stringify(prevEditorOptions)) {
+                            window.prevEditorOptions = JSON.parse(JSON.stringify(editor.getOptions()));
+                            firebase.database().ref(firepadRef).child("config").set(window.prevEditorOptions);
+                        }
+                    }, 1000);
+                }
             });
         });
     }
