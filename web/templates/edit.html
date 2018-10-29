@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge,chrome=1">
+    <title>Share Editor</title>
+
+    <script src="https://code.jquery.com/jquery-3.3.1.min.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-database.js"></script>
+
+    <link rel="stylesheet" href="https://cdn.firebase.com/libs/firepad/1.5.0/firepad.css"/>
+
+    <link href="https://stackpath.bootstrapcdn.com/bootswatch/4.1.2/darkly/bootstrap.min.css" rel="stylesheet"
+          integrity="sha384-RfekGV6fZXMN1XYz5oPc4N/0IDvTM1Nt6Xciam6v0Al+glvRJ2mhnsr2S6tH/qM8" crossorigin="anonymous">
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.1.2/js/bootstrap.min.js"
+            integrity="sha384-o+RDsa0aLu++PJvFqy8fFScvbHFLtbvScb8AjopnFD+iEQ7wo/CG0xlczd+2O/em"
+            crossorigin="anonymous"></script>
+
+    <style type="text/css" media="screen">
+        html {
+            height: 100%;
+        }
+
+        body {
+            margin: 0;
+            height: 100%;
+            position: relative;
+        }
+
+        #editor {
+            margin: 0;
+            position: absolute;
+            top: 0;
+            bottom: 20px;
+            left: 0;
+            right: 0;
+            width: 100%;
+        }
+
+        #statusBar {
+            margin: 0;
+            padding: 0;
+            position: absolute;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            height: 20px;
+            background-color: rgb(245, 245, 245);
+            color: gray;
+        }
+
+        .ace_status-indicator {
+            color: gray;
+            position: absolute;
+            right: 5px;
+            border-left: 2px solid;
+            padding-left: 5px;
+        }
+
+        .user-numbers {
+            color: gray;
+            position: absolute;
+            right: 20%;
+            border-left: 2px solid;
+            padding-left: 5px;
+        }
+
+        a.powered-by-firepad {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+
+<pre id="editor"></pre>
+<div id="statusBar">Press Ctrl-q to open the settings menu.
+    <div class="user-numbers" style="display: inline-block;"><code id="userNumber">1</code> user(s) connected.</div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/require.js/2.3.5/require.min.js"></script>
+<script>
+    var getURLParameter = function getURLParameter(sParam) {
+        var sPageURL = decodeURIComponent(window.location.search.substring(1)),
+                sURLVariables = sPageURL.split('&'),
+                sParameterName,
+                i;
+
+        for (i = 0; i < sURLVariables.length; i++) {
+            sParameterName = sURLVariables[i].split('=');
+
+            if (sParameterName[0] === sParam) {
+                return sParameterName[1] === undefined ? true : sParameterName[1];
+            }
+        }
+    };
+
+    var getLocation = function (href) {
+        var l = document.createElement("a");
+        l.href = href;
+        return l;
+    };
+
+    function isValidURL(str) {
+        var pattern = new RegExp('^(https?:\\/\\/)?' + // protocol
+                '((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|' + // domain name
+                '((\\d{1,3}\\.){3}\\d{1,3}))' + // OR ip (v4) address
+                '(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*' + // port and path
+                '(\\?[;&a-z\\d%_.~+=-]*)?' + // query string
+                '(\\#[-a-z\\d_]*)?$', 'i'); // fragment locater
+        if (!pattern.test(str)) {
+            return false;
+        } else {
+            return true;
+        }
+    }
+
+    var ip = "{{.IPAddress}}";
+
+    var config = {
+        apiKey: "{{.APIKey}}",
+        authDomain: "{{.AuthDomain}}",
+        databaseURL: "{{.DatabaseURL}}",
+        projectId: "{{.ProjectID}}",
+        storageBucket: "{{.StorageBucket}}",
+        messagingSenderId: "{{.MessagingSenderID}}"
+    };
+    firebase.initializeApp(config);
+
+    function getFirepadRef() {
+        var ref = firebase.database().ref();
+        var hash = window.location.hash.replace(/#/g, "");
+        if (hash) {
+            ref = ref.child(hash);
+        } else {
+            ref = ref.push(); // generate unique location.
+            window.location = window.location + "#" + ref.key; // add it as a hash to the URL.
+        }
+        return ref;
+    }
+
+    var firepadRef = getFirepadRef();
+
+    // setup paths
+    require.config({paths: {"ace": "https://cdn.rawgit.com/ajaxorg/ace/ded791fcd6f0f346fb01314eaba82d89610284d2/lib/ace"}});
+    // load ace and extensions
+    require(["ace/ace", "ace/ext/settings_menu", "ace/ext/language_tools", "ace/ext/statusbar", "ace/ext/beautify"], function (ace) {
+        window.ace = ace;
+
+        var editor = ace.edit("editor");
+        ace.require("ace/ext/settings_menu").init(editor);
+
+        var StatusBar = ace.require("ace/ext/statusbar").StatusBar;
+        var statusBar = new StatusBar(editor, document.getElementById("statusBar"));
+
+        editor.setOptions({
+            enableBasicAutocompletion: true,
+            enableSnippets: true,
+            enableLiveAutocompletion: true
+        });
+        editor.setTheme("ace/theme/tomorrow_night_bright");
+        editor.session.setMode("ace/mode/text");
+        editor.session.setUseWorker(false);
+        editor.commands.addCommands([
+            {
+                name: "showSettingsMenu",
+                bindKey: {win: "Ctrl-q", mac: "Ctrl-q"},
+                exec: function (editor) {
+                    editor.showSettingsMenu();
+                },
+                readOnly: true
+            }
+        ].concat(ace.require("ace/ext/beautify").commands));
+
+        loadFirepad(firepadRef, editor);
+    })
+
+    function loadFirepad(firepadRef, editor) {
+        require(["//cdn.firebase.com/libs/firepad/1.5.0/firepad.min.js"], function (Firepad) {
+            var loadedText = getURLParameter("load");
+            var defaultText = "";
+            var loadFirepad = true;
+
+            if (loadedText) {
+                if (isValidURL(loadedText)) {
+                    loadFirepad = false;
+                    var domain = "https://cors-anywhere.herokuapp.com/" + loadedText;
+
+                    if (getLocation(loadedText).hostname === window.location.hostname) {
+                        domain = loadedText;
+                    }
+
+                    $.get(domain, function (data) {
+                        defaultText = data;
+
+                        setupFirepad(Firepad, firepadRef, editor, defaultText)
+                    });
+                } else {
+                    defaultText = loadedText;
+                }
+            }
+
+            if (loadFirepad && typeof firepad === "undefined") {
+                setupFirepad(Firepad, firepadRef, editor, defaultText);
+            }
+        });
+    }
+
+    function setupFirepad(Firepad, firepadRef, editor, defaultText) {
+        firepad = Firepad.fromACE(firepadRef, editor, {
+            defaultText: defaultText
+        });
+
+        firepad.on("ready", function (e) {
+            firebase.database().ref(firepadRef).child("creatorIP").once('value').then(function(snap) {
+                var val = snap.val();
+
+                if (!val) {
+                    firebase.database().ref(firepadRef).child("creatorIP").set(ip);
+                    firebase.database().ref(firepadRef).child("accessorIPs").set([ip]);
+                } else {
+                    firebase.database().ref(firepadRef).child("accessorIPs").once("value", function (snap2) {
+                        var val2 = snap2.val();
+                        val2.push(ip);
+
+                        firebase.database().ref(firepadRef).child("accessorIPs").set(val2);
+                    });
+                }
+            });
+
+            firebase.database().ref(firepadRef).child("users").on("value", function (snap) {
+                var val = snap.val();
+
+                if (val) {
+                    $("#userNumber").text(Object.keys(val).length);
+                }
+            });
+
+            firebase.database().ref(firepadRef).child("config").on("value", function (snap) {
+                var val = snap.val();
+
+                if (val) {
+                    window.prevEditorOptions = val;
+                    editor.setOptions(val);
+                }
+
+                if (typeof window.editorSettingsUpdater === 'undefined') {
+                    window.editorSettingsUpdater = setInterval(function() {
+                        if (typeof window.prevEditorOptions === 'undefined' || JSON.stringify(editor.getOptions()) !== JSON.stringify(prevEditorOptions)) {
+                            window.prevEditorOptions = JSON.parse(JSON.stringify(editor.getOptions()));
+                            firebase.database().ref(firepadRef).child("config").set(window.prevEditorOptions);
+                        }
+                    }, 1000);
+                }
+            });
+        });
+    }
+</script>
+
+</body>
+</html>
