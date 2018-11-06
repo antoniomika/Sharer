@@ -90,6 +90,8 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 		filename = c.Param("filename")
 	}
 
+	storedFile := filename
+
 	it := bucketHandle.Objects(ctx, &storage.Query{
 		Prefix: filename,
 	})
@@ -105,10 +107,10 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 	}
 
 	if exists > 0 {
-		filename += fmt.Sprintf(".%d", exists)
+		storedFile += fmt.Sprintf(".%d", exists)
 	}
 
-	wrt := bucketHandle.Object(filename).NewWriter(ctx)
+	wrt := bucketHandle.Object(storedFile).NewWriter(ctx)
 
 	_, err = io.Copy(wrt, uploadFile)
 	if err != nil {
@@ -122,7 +124,7 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 		return
 	}
 
-	blobKey, err := blobstore.BlobKeyForFile(ctx, "/gs/"+bucket+"/"+filename)
+	blobKey, err := blobstore.BlobKeyForFile(ctx, "/gs/"+bucket+"/"+storedFile)
 	if err != nil {
 		c.AbortWithError(http.StatusInternalServerError, err)
 		return
