@@ -45,7 +45,8 @@ func main() {
 		apiGroup.Any("/upload/:filename", upload)
 	}
 
-	r.Run(":" + os.Getenv("PORT"))
+	http.Handle("/", r)
+	appengine.Main()
 }
 
 func handleIndex(c *gin.Context) {
