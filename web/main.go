@@ -45,7 +45,7 @@ func main() {
 		apiGroup.Any("/upload/:filename", upload)
 	}
 
-	r.Run(os.Getenv("PORT"))
+	r.Run(":" + os.Getenv("PORT"))
 }
 
 func handleIndex(c *gin.Context) {
