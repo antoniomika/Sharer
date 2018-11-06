@@ -94,14 +94,6 @@
   version = "v1.1.1"
 
 [[projects]]
-  digest = "1:e73f5b0152105f18bc131fba127d9949305c8693f8a762588a82a48f61756f5f"
-  name = "github.com/gorilla/mux"
-  packages = ["."]
-  pruneopts = "UT"
-  revision = "e3702bed27f0d39777b0b37b664b6280e8ef8fbf"
-  version = "v1.6.2"
-
-[[projects]]
   digest = "1:e72d1ebb8d395cf9f346fd9cbc652e5ae222dd85e0ac842dc57f175abed6d195"
   name = "github.com/gorilla/securecookie"
   packages = ["."]
@@ -393,7 +385,6 @@
     "cloud.google.com/go/storage",
     "github.com/dsoprea/goappenginesessioncascade",
     "github.com/gin-gonic/gin",
-    "github.com/gorilla/mux",
     "golang.org/x/crypto/bcrypt",
     "google.golang.org/appengine",
     "google.golang.org/appengine/blobstore",

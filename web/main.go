@@ -27,7 +27,7 @@ var (
 
 func main() {
 	r := gin.Default()
-	r.LoadHTMLGlob("web/templates/*")
+	r.LoadHTMLGlob("templates/*")
 	r.Use(cleanupMiddleware)
 
 	r.GET("/", handleIndex)

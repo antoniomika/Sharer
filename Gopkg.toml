@@ -34,10 +34,6 @@
   name = "github.com/dsoprea/goappenginesessioncascade"
 
 [[constraint]]
-  name = "github.com/gorilla/mux"
-  version = "1.6.2"
-
-[[constraint]]
   branch = "master"
   name = "golang.org/x/crypto"
 
