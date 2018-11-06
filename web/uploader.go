@@ -8,7 +8,7 @@ import (
 	"time"
 
 	"cloud.google.com/go/storage"
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/blobstore"
 	"google.golang.org/appengine/datastore"
@@ -17,29 +17,29 @@ import (
 	"gopkg.in/h2non/filetype.v1"
 )
 
-func upload(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+func upload(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 
-	switch r.Method {
+	switch c.Request.Method {
 	case "GET":
-		uploadGet(ctx, w, r)
+		uploadGet(ctx, c)
 		return
 	case "PUT":
 		fallthrough
 	case "POST":
-		uploadPost(ctx, w, r)
+		uploadPost(ctx, c)
 		return
 	case "DELETE":
-		uploadDelete(ctx, w, r)
+		uploadDelete(ctx, c)
 		return
 	}
 }
 
-func uploadGet(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func uploadGet(ctx context.Context, c *gin.Context) {
 	var uploads []*Upload
 	keys, err := datastore.NewQuery("Upload").GetAll(ctx, &uploads)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -49,14 +49,12 @@ func uploadGet(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	res["keys"] = keys
 	res["uploads"] = uploads
 
-	returnJSON(w, r, res, 0)
+	returnJSON(c, res, 0)
 
 	return
 }
 
-func uploadPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	query := r.URL.Query()
+func uploadPost(ctx context.Context, c *gin.Context) {
 	token := RandStringBytesMaskImprSrc(6)
 
 	bucket, err := file.DefaultBucketName(ctx)
@@ -76,45 +74,43 @@ func uploadPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	filename := ""
 
 	var uploadFile io.Reader
-	if r.Method == "POST" {
-		r.ParseMultipartForm(32 << 20)
-		uploadedFile, handler, err := r.FormFile("uploadfile")
-		uploadFile = uploadedFile
+	if c.Request.Method == "POST" {
+		uploadedFile, err := c.FormFile("uploadfile")
+		uploadFile, err = uploadedFile.Open()
 		if err != nil {
-			http.Error(w, err.Error(), 500)
+			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
-		defer uploadedFile.Close()
 
-		filename = handler.Filename
+		filename = uploadedFile.Filename
 	} else {
-		uploadFile = r.Body
-		filename = vars["filename"]
+		uploadFile = c.Request.Body
+		filename = c.Param("filename")
 	}
 
 	wrt := bucketHandle.Object(filename).NewWriter(ctx)
 
 	_, err = io.Copy(wrt, uploadFile)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	err = wrt.Close()
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
 	blobKey, err := blobstore.BlobKeyForFile(ctx, "/gs/"+bucket+"/"+filename)
 	if err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
-	url := r.URL.Scheme + "://" + r.URL.Host + "/u/" + token + "/" + filename
+	url := c.Request.URL.Scheme + "://" + c.Request.URL.Host + "/u/" + token + "/" + filename
 
-	expireClicks := query.Get("clicks")
+	expireClicks := c.Query("clicks")
 	if expireClicks == "" {
 		expireClicks = "0"
 	}
@@ -124,7 +120,7 @@ func uploadPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "failed to get convert int: %v", err)
 	}
 
-	expireTime := query.Get("time")
+	expireTime := c.Query("time")
 
 	duration, err := time.ParseDuration(expireTime)
 	if err != nil {
@@ -158,13 +154,13 @@ func uploadPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	key := datastore.NewKey(ctx, "Upload", token, 0, nil)
 
 	if _, err := datastore.Put(ctx, key, uploaded); err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 	}
 
-	if query.Get("s") != "" {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(url))
+	if c.Query("s") != "" {
+		c.Header("Content-Type", "text/plain")
+		c.Writer.WriteHeader(http.StatusOK)
+		c.Writer.Write([]byte(url))
 	} else {
 		res := make(map[string]interface{})
 
@@ -174,36 +170,36 @@ func uploadPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		res["upload"] = uploaded
 		res["bucket"] = bucket
 
-		returnJSON(w, r, res, 0)
+		returnJSON(c, res, 0)
 	}
 
 	return
 }
 
-func uploadDelete(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func uploadDelete(ctx context.Context, c *gin.Context) {
 	upload := new(Upload)
 
-	key := datastore.NewKey(ctx, "Upload", r.URL.Query()["token"][0], 0, nil)
+	key := datastore.NewKey(ctx, "Upload", c.QueryArray("token")[0], 0, nil)
 
 	if err := datastore.Get(ctx, key, upload); err != nil {
 		if err == datastore.ErrNoSuchEntity {
-			http.Redirect(w, r, "/", http.StatusFound)
+			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
 
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
 	bucket, err := file.DefaultBucketName(ctx)
 	if err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
 	client, err := storage.NewClient(ctx)
 	if err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 	defer client.Close()
@@ -211,12 +207,12 @@ func uploadDelete(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	bucketHandle := client.Bucket(bucket)
 
 	if err := bucketHandle.Object(upload.Filename).Delete(ctx); err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
 	if err := datastore.Delete(ctx, key); err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
@@ -224,7 +220,7 @@ func uploadDelete(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 
 	res["status"] = true
 
-	returnJSON(w, r, res, 0)
+	returnJSON(c, res, 0)
 
 	return
 }

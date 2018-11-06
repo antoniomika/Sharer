@@ -6,33 +6,34 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/gin-gonic/gin"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/datastore"
 	"google.golang.org/appengine/log"
 )
 
-func shorten(w http.ResponseWriter, r *http.Request) {
-	ctx := appengine.NewContext(r)
+func shorten(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 
-	switch r.Method {
+	switch c.Request.Method {
 	case "GET":
-		shortenGet(ctx, w, r)
+		shortenGet(ctx, c)
 		return
 	case "POST":
-		shortenPost(ctx, w, r)
+		shortenPost(ctx, c)
 		return
 	case "DELETE":
-		shortenDelete(ctx, w, r)
+		shortenDelete(ctx, c)
 		return
 	case "PUT":
 	}
 }
 
-func shortenGet(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func shortenGet(ctx context.Context, c *gin.Context) {
 	var links []*Link
 	keys, err := datastore.NewQuery("Link").GetAll(ctx, &links)
 	if err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
@@ -42,18 +43,17 @@ func shortenGet(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	res["keys"] = keys
 	res["links"] = links
 
-	returnJSON(w, r, res, 0)
+	returnJSON(c, res, 0)
 
 	return
 }
 
-func shortenPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func shortenPost(ctx context.Context, c *gin.Context) {
 	token := RandStringBytesMaskImprSrc(6)
-	query := r.URL.Query()
 
-	url := r.URL.Scheme + "://" + r.URL.Host + "/s/" + token
+	url := c.Request.URL.Scheme + "://" + c.Request.URL.Host + "/s/" + token
 
-	expireClicks := query.Get("clicks")
+	expireClicks := c.Query("clicks")
 	if expireClicks == "" {
 		expireClicks = "0"
 	}
@@ -63,7 +63,7 @@ func shortenPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		log.Errorf(ctx, "failed to get convert int: %v", err)
 	}
 
-	expireTime := query.Get("time")
+	expireTime := c.Query("time")
 
 	duration, err := time.ParseDuration(expireTime)
 	if err != nil {
@@ -78,7 +78,7 @@ func shortenPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	link := new(Link)
 
 	link.Token = token
-	link.URL = r.URL.Query()["url"][0]
+	link.URL = c.QueryArray("url")[0]
 	link.Clicks = 0
 	link.Clickers = make([]string, 0)
 	link.ShortURL = url
@@ -89,14 +89,14 @@ func shortenPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 	key := datastore.NewKey(ctx, "Link", token, 0, nil)
 
 	if _, err := datastore.Put(ctx, key, link); err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
-	if query.Get("s") != "" {
-		w.Header().Set("Content-Type", "text/plain")
-		w.WriteHeader(http.StatusOK)
-		w.Write([]byte(url))
+	if c.Query("s") != "" {
+		c.Header("Content-Type", "text/plain")
+		c.Writer.WriteHeader(http.StatusOK)
+		c.Writer.Write([]byte(url))
 	} else {
 		res := make(map[string]interface{})
 
@@ -105,29 +105,29 @@ func shortenPost(ctx context.Context, w http.ResponseWriter, r *http.Request) {
 		res["url"] = url
 		res["link"] = link
 
-		returnJSON(w, r, res, 0)
+		returnJSON(c, res, 0)
 	}
 
 	return
 }
 
-func shortenDelete(ctx context.Context, w http.ResponseWriter, r *http.Request) {
+func shortenDelete(ctx context.Context, c *gin.Context) {
 	link := new(Link)
 
-	key := datastore.NewKey(ctx, "Link", r.URL.Query()["token"][0], 0, nil)
+	key := datastore.NewKey(ctx, "Link", c.QueryArray("token")[0], 0, nil)
 
 	if err := datastore.Get(ctx, key, link); err != nil {
 		if err == datastore.ErrNoSuchEntity {
-			http.Redirect(w, r, "/", http.StatusFound)
+			c.Redirect(http.StatusFound, "/")
 			return
 		}
 
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
 	if err := datastore.Delete(ctx, key); err != nil {
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
@@ -135,7 +135,7 @@ func shortenDelete(ctx context.Context, w http.ResponseWriter, r *http.Request) 
 
 	res["status"] = true
 
-	returnJSON(w, r, res, 0)
+	returnJSON(c, res, 0)
 
 	return
 }

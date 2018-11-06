@@ -1,21 +1,18 @@
 package main
 
 import (
-	"html/template"
 	"net/http"
 
 	"os"
 	"strings"
 
-	"github.com/gorilla/mux"
+	"github.com/gin-gonic/gin"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/blobstore"
 	"google.golang.org/appengine/datastore"
 )
 
 var (
-	templ          = template.Must(template.ParseFiles("web/templates/edit.html"))
-	adminTempl     = template.Must(template.ParseFiles("web/templates/admin.html"))
 	firebaseConfig = FirebaseConfig{
 		APIKey:            os.Getenv("FIREBASE_APIKEY"),
 		AuthDomain:        os.Getenv("FIREBASE_AUTHDOMAIN"),
@@ -29,64 +26,62 @@ var (
 )
 
 func main() {
-	router := mux.NewRouter()
-	router.Use(cleanupMiddleware)
+	r := gin.Default()
+	r.LoadHTMLGlob("web/templates/*")
+	r.Use(cleanupMiddleware)
 
-	apiRouter := router.PathPrefix("/api").Subrouter()
+	r.GET("/", handleIndex)
+	r.GET("/e", handleEdit)
+	r.GET("/admin", handleAdmin)
 
-	apiRouter.Use(authMiddleware)
+	r.GET("/s/:id", loadData)
+	r.GET("/u/:id", loadData)
+	r.GET("/u/:id/:filename", loadData)
 
-	router.HandleFunc("/", handleIndex).Methods("GET")
-	router.HandleFunc("/e", handleEdit).Methods("GET")
-	router.Handle("/admin", authMiddleware(http.HandlerFunc(handleAdmin)))
+	apiGroup := r.Group("/api", authMiddleware)
+	{
+		apiGroup.Any("/shorten", shorten)
+		apiGroup.Any("/upload", upload)
+		apiGroup.Any("/upload/:filename", upload)
+	}
 
-	router.HandleFunc("/s/{id}", loadData).Methods("GET")
-	router.HandleFunc("/u/{id}", loadData).Methods("GET")
-	router.HandleFunc("/u/{id}/{filename}", loadData).Methods("GET")
-
-	apiRouter.HandleFunc("/shorten", shorten).Methods("GET", "POST", "PUT", "DELETE")
-	apiRouter.HandleFunc("/upload", upload).Methods("GET", "POST", "PUT", "DELETE")
-	apiRouter.HandleFunc("/upload/{filename}", upload).Methods("GET", "POST", "PUT", "DELETE")
-
-	http.Handle("/", router)
-	appengine.Main()
+	r.Run(os.Getenv("PORT"))
 }
 
-func handleIndex(w http.ResponseWriter, r *http.Request) {
-	if r.URL.Hostname() == os.Getenv("EDITOR_HOSTNAME") {
-		handleEdit(w, r)
+func handleIndex(c *gin.Context) {
+	if c.Request.Host == os.Getenv("EDITOR_HOSTNAME") {
+		handleEdit(c)
 		return
 	}
 
-	http.Redirect(w, r, os.Getenv("REDIRECT_MAIN"), http.StatusFound)
+	c.Redirect(http.StatusFound, os.Getenv("REDIRECT_MAIN"))
 }
 
-func handleEdit(w http.ResponseWriter, r *http.Request) {
-	firebaseConfig.IPAddress = r.RemoteAddr
-	templ.Execute(w, firebaseConfig)
+func handleEdit(c *gin.Context) {
+	firebaseConfig.IPAddress = c.Request.RemoteAddr
+	c.HTML(http.StatusOK, "edit.html", firebaseConfig)
 }
 
-func handleAdmin(w http.ResponseWriter, r *http.Request) {
-	adminTempl.Execute(w, firebaseConfig)
+func handleAdmin(c *gin.Context) {
+	c.HTML(http.StatusOK, "admin.html", firebaseConfig)
 }
 
-func loadData(w http.ResponseWriter, r *http.Request) {
-	vars := mux.Vars(r)
-	ctx := appengine.NewContext(r)
+func loadData(c *gin.Context) {
+	ctx := appengine.NewContext(c.Request)
 	kind := ""
 	var ent interface{}
 
-	if strings.HasPrefix(r.URL.Path, "/s/") {
+	if strings.HasPrefix(c.Request.URL.Path, "/s/") {
 		kind = "Link"
 		ent = new(Link)
-	} else if strings.HasPrefix(r.URL.Path, "/u/") {
+	} else if strings.HasPrefix(c.Request.URL.Path, "/u/") {
 		kind = "Upload"
 		ent = new(Upload)
 	}
 
 	id := ""
 
-	stringArr := strings.Split(vars["id"], ".")
+	stringArr := strings.Split(c.Param("id"), ".")
 
 	id = stringArr[0]
 
@@ -94,10 +89,10 @@ func loadData(w http.ResponseWriter, r *http.Request) {
 
 	if err := datastore.Get(ctx, key, ent); err != nil {
 		if err == datastore.ErrNoSuchEntity {
-			http.Redirect(w, r, "/", http.StatusFound)
+			c.Redirect(http.StatusFound, "/")
 			return
 		}
-		returnErr(w, r, err, 0)
+		returnErr(c, err, 0)
 		return
 	}
 
@@ -106,13 +101,13 @@ func loadData(w http.ResponseWriter, r *http.Request) {
 	if ok {
 		newLink := link
 		newLink.Clicks++
-		newLink.Clickers = append(newLink.Clickers, r.RemoteAddr)
+		newLink.Clickers = append(newLink.Clickers, c.Request.RemoteAddr)
 
 		if _, err := datastore.Put(ctx, key, newLink); err != nil {
-			http.Error(w, err.Error(), 500)
+			c.AbortWithError(http.StatusInternalServerError, err)
 		}
 
-		http.Redirect(w, r, link.URL, http.StatusFound)
+		c.Redirect(http.StatusFound, link.URL)
 		return
 	}
 
@@ -121,12 +116,12 @@ func loadData(w http.ResponseWriter, r *http.Request) {
 
 	newUpload := upload
 	newUpload.Clicks++
-	newUpload.Clickers = append(newUpload.Clickers, r.RemoteAddr)
+	newUpload.Clickers = append(newUpload.Clickers, c.Request.RemoteAddr)
 
 	if _, err := datastore.Put(ctx, key, newUpload); err != nil {
-		http.Error(w, err.Error(), 500)
+		c.AbortWithError(http.StatusInternalServerError, err)
 	}
 
-	blobstore.Send(w, uploadKey)
+	blobstore.Send(c.Writer, uploadKey)
 	return
 }
