@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"net/http"
 	"strconv"
@@ -9,6 +10,7 @@ import (
 
 	"cloud.google.com/go/storage"
 	"github.com/gin-gonic/gin"
+	"google.golang.org/api/iterator"
 	"google.golang.org/appengine"
 	"google.golang.org/appengine/blobstore"
 	"google.golang.org/appengine/datastore"
@@ -86,6 +88,24 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 	} else {
 		uploadFile = c.Request.Body
 		filename = c.Param("filename")
+	}
+
+	it := bucketHandle.Objects(ctx, &storage.Query{
+		Prefix: filename,
+	})
+
+	exists := 0
+	for {
+		_, err := it.Next()
+		if err == iterator.Done || err == nil {
+			break
+		} else {
+			exists++
+		}
+	}
+
+	if exists > 0 {
+		filename += fmt.Sprintf(".%d", exists)
 	}
 
 	wrt := bucketHandle.Object(filename).NewWriter(ctx)
