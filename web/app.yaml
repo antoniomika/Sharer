@@ -1,0 +1,22 @@
+runtime: go111
+
+handlers:
+- url: /.*
+  script: auto
+  secure: always
+
+env_variables:
+  REDIRECT_MAIN: "https://antoniomika.me"
+  EDITOR_HOSTNAME: "e.mik.qa"
+  SHARE_HOSTNAME: "s.mik.qa"
+  SECRET_DOMAIN: "f00oof.mik.qa"
+  SESSION_NAME: "MainSession"
+  SESSION_SECRET: "SessionSecret"
+  ADMIN_EMAIL: "s@mik.qa"
+  ADMIN_PASS: "AdminPass"
+  FIREBASE_APIKEY: ""
+  FIREBASE_AUTHDOMAIN: ""
+  FIREBASE_DATABASEURL: ""
+  FIREBASE_PROJECTID: ""
+  FIREBASE_STORAGEBUCKET: ""
+  FIREBASE_MESSAGINGSENDERID: ""

@@ -1,0 +1,247 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <title>Sharer Admin</title>
+
+    <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-app.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/5.2.0/firebase-database.js"></script>
+    <script src="https://code.jquery.com/jquery-3.2.1.min.js"></script>
+    <script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/js/bootstrap.min.js"
+            integrity="sha384-Tc5IQib027qvyjSMfHjOMaLkfuWVxZxUPnCJA7l2mCWNIpG9mGCD8wGNIcPD7Txa"
+            crossorigin="anonymous"></script>
+    <script src="https://cdn.datatables.net/1.10.15/js/jquery.dataTables.min.js"></script>
+    <script src="https://cdn.datatables.net/1.10.15/js/dataTables.bootstrap.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.1.1/js/dataTables.responsive.min.js"></script>
+    <script src="https://cdn.datatables.net/responsive/2.1.1/js/responsive.bootstrap.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.3.1/js/dataTables.buttons.min.js"></script>
+    <script src="https://cdn.datatables.net/buttons/1.3.1/js/buttons.bootstrap.min.js"></script>
+    <script src="//cdn.datatables.net/buttons/1.3.1/js/buttons.flash.min.js"></script>
+    <script src="//cdnjs.cloudflare.com/ajax/libs/jszip/3.1.3/jszip.min.js"></script>
+    <script src="//cdn.rawgit.com/bpampuch/pdfmake/0.1.27/build/pdfmake.min.js"></script>
+    <script src="//cdn.rawgit.com/bpampuch/pdfmake/0.1.27/build/vfs_fonts.js"></script>
+    <script src="//cdn.datatables.net/buttons/1.3.1/js/buttons.html5.min.js"></script>
+    <script src="//cdn.datatables.net/buttons/1.3.1/js/buttons.print.min.js"></script>
+    <link href="https://maxcdn.bootstrapcdn.com/bootswatch/3.3.7/darkly/bootstrap.min.css" rel="stylesheet">
+    <link href="https://maxcdn.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet"
+          integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+    <link href="https://cdn.datatables.net/1.10.15/css/dataTables.bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/responsive/2.1.1/css/responsive.bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.datatables.net/buttons/1.3.1/css/buttons.bootstrap.min.css" rel="stylesheet">
+    <script>
+        function deleteToken(type, token) {
+            var url = '/api/';
+            switch(type) {
+                case 'link':
+                    url += 'shorten';
+                    break;
+                case 'upload':
+                    url += 'upload';
+                    break;
+                case 'pad':
+                    url = false;
+                    break;
+            }
+
+            if (url) {
+                console.log(url, type, token);
+                $.ajax({
+                    url: url + '?token=' + token,
+                    type: 'DELETE',
+                    success: function(result) {
+                        window.location.reload();
+                    }
+                });
+            } else {
+                firebase.database().ref('/' + token).remove().then(function(e) {
+                    window.location.reload();
+                });
+            }
+        }
+
+        $(document).ready(function () {
+            var config = {
+                apiKey: "{{.APIKey}}",
+                authDomain: "{{.AuthDomain}}",
+                databaseURL: "{{.DatabaseURL}}",
+                projectId: "{{.ProjectID}}",
+                storageBucket: "{{.StorageBucket}}",
+                messagingSenderId: "{{.MessagingSenderID}}"
+            };
+            firebase.initializeApp(config);
+
+            $.getJSON('/api/upload', function(data) {
+                if (data.uploads) {
+                    for (var elem in data.uploads) {
+                        var upload = data.uploads[elem];
+
+                        $("#uploads-table > tbody").append(`
+                            <tr>
+                                <th>${elem}</th>
+                                <td><a href="${upload.ShortURL}" target="_blank">${upload.Token}</a></td>
+                                <td>${upload.Filename}</td>
+                                <td>${(new Date(upload.CreateTime)).toLocaleString()}</td>
+                                <td>${(new Date(upload.ExpireTime)).toLocaleString()}</td>
+                                <td>${upload.ExpireClicks}</td>
+                                <td>${upload.Clicks}</td>
+                                <td><pre>${JSON.stringify(upload.Clickers, null, 4)}</pre></td>
+                                <td><button onclick="deleteToken('upload', '${upload.Token}')" class="btn btn-primary">Delete</button></td>
+                            </tr>
+                        `);
+                    }
+                }
+
+                uploads_table = $('#uploads-table').DataTable({
+                    buttons: [
+                        'copy', 'csv', 'excel', 'pdf', 'print'
+                    ]
+                });
+                uploads_table.buttons().container().appendTo('#uploads-table_wrapper .col-sm-6:eq(0)');
+            });
+
+            $.getJSON('/api/shorten', function(data) {
+                if (data.links) {
+                    for (var elem in data.links) {
+                        var link = data.links[elem];
+
+                        $("#links-table > tbody").append(`
+                            <tr>
+                                <th>${elem}</th>
+                                <td><a href="${link.ShortURL}" target="_blank">${link.Token}</a></td>
+                                <td>${link.URL}</td>
+                                <td>${(new Date(link.CreateTime)).toLocaleString()}</td>
+                                <td>${(new Date(link.ExpireTime)).toLocaleString()}</td>
+                                <td>${link.ExpireClicks}</td>
+                                <td>${link.Clicks}</td>
+                                <td><pre>${JSON.stringify(link.Clickers, null, 4)}</pre></td>
+                                <td><button onclick="deleteToken('link', '${link.Token}')" class="btn btn-primary">Delete</button></td>
+                            </tr>
+                        `);
+                    }
+                }
+
+                links_table = $('#links-table').DataTable({
+                    buttons: [
+                        'copy', 'csv', 'excel', 'pdf', 'print'
+                    ]
+                });
+                links_table.buttons().container().appendTo('#links-table_wrapper .col-sm-6:eq(0)');
+            });
+
+            firebase.database().ref('/').once('value').then(function(snap) {
+                var val = snap.val();
+                for (var elem in val) {
+                    var pad = val[elem];
+                    var editorURL = "{{ .EditorURL }}";
+
+                    $("#pads-table > tbody").append(`
+                        <tr>
+                            <th><a href="${window.location.protocol + '\/\/' + editorURL + '/#' + elem}" target="_blank">${elem}</a></th>
+                            <td><button onclick="deleteToken('pad', '${elem}')" class="btn btn-primary">Delete</button></td>
+                            <td><pre>${JSON.stringify(pad.creatorIP, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.accessorIPs, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.checkpoint, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.history, null, 4)}</pre></td>
+                            <td><pre>${JSON.stringify(pad.config, null, 4)}</pre></td>
+                        </tr>
+                    `);
+                }
+
+
+                pads_table = $('#pads-table').DataTable({
+                    buttons: [
+                        'copy', 'csv', 'excel', 'pdf', 'print'
+                    ]
+                });
+                pads_table.buttons().container().appendTo('#pads-table_wrapper .col-sm-6:eq(0)');
+            });
+        });
+    </script>
+</head>
+<body>
+<div class="navbar navbar-default navbar-fixed-top" role="navigation">
+    <div class="container">
+        <div class="navbar-header">
+            <button class="navbar-toggle" type="button" data-toggle="collapse" data-target=".navbar-collapse"><span
+                    class="sr-only">Toggle navigation</span><span class="icon-bar"></span><span class="icon-bar"></span><span
+                    class="icon-bar"></span></button>
+            <a class="navbar-brand" href="/admin">Sharer Admin</a></div>
+        <div class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li class="active"><a href="/admin">Admin</a></li>
+            </ul>
+            <ul class="nav navbar-nav navbar-right">
+                <li><a href="/e">Edit</a></li>
+            </ul>
+        </div>
+    </div>
+</div>
+<div class="container" style="padding-top: 60px;">
+    <div class="row">
+        <div id="uploads"><h2>Uploads:</h2>
+            <table class="table table-responsive table-striped table-bordered dt-responsive nowrap"
+                   id="uploads-table" cellspacing="0" width="100%">
+                <thead id="table-head-1">
+                <tr id="table-head-row-1">
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>Filename</th>
+                    <th>Create Time</th>
+                    <th>Expire Time</th>
+                    <th>Expire Clicks</th>
+                    <th>Clicks</th>
+                    <th>Clickers</th>
+                    <th>Delete</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="links"><h2>Links:</h2>
+            <table class="table table-responsive table-striped table-bordered dt-responsive nowrap"
+                   id="links-table" cellspacing="0" width="100%">
+                <thead id="table-head-2">
+                <tr id="table-head-row-2">
+                    <th>#</th>
+                    <th>Token</th>
+                    <th>URL</th>
+                    <th>Create Time</th>
+                    <th>Expire Time</th>
+                    <th>Expire Clicks</th>
+                    <th>Clicks</th>
+                    <th>Clickers</th>
+                    <th>Delete</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+
+        <div id="pads"><h2>Pads:</h2>
+            <table class="table table-responsive table-striped table-bordered dt-responsive nowrap"
+                   id="pads-table" cellspacing="0" width="100%">
+                <thead id="table-head-3">
+                <tr id="table-head-row-3">
+                    <th>ID</th>
+                    <th>Delete</th>
+                    <th>Creator IP</th>
+                    <th>Accessor IPs</th>
+                    <th>Checkpoint</th>
+                    <th>History</th>
+                    <th>Config</th>
+                </tr>
+                </thead>
+                <tbody>
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+</body>
+</html>

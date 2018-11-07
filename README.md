@@ -9,10 +9,10 @@ This app uses [Google App Engine](https://cloud.google.com/appengine/) as the un
     - https://cloud.google.com/sdk/install
 2. Login to gcloud
     - `gcloud auth login`
-3. Update your `app.yaml` to reflect your configuration. Go get packages
-    - `go get -u github.com/gorilla/mux google.golang.org/appengine google.golang.org/appengine/blobstore google.golang.org/appengine/datastore cloud.google.com/go/storage gopkg.in/h2non/filetype.v1 github.com/dsoprea/goappenginesessioncascade`
+3. Update your `web/app.yaml` to reflect your configuration. Go get packages
+    - `dep ensure`
 4. Run the gcloud app deploy on the project for Sharer
-    - `gcloud app deploy app.yaml`
+    - `gcloud app deploy web/app.yaml`
     
 ## Usage
 I personally live in the terminal, so it has been made to be used terminal first. Maybe one day I'll add a Web UI, but this works just fine.
