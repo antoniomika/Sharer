@@ -32,7 +32,7 @@ func main() {
 
 	r.GET("/", handleIndex)
 	r.GET("/e", handleEdit)
-	r.GET("/admin", handleAdmin)
+	r.GET("/admin", authMiddleware, handleAdmin)
 
 	r.GET("/s/:id", loadData)
 	r.GET("/u/:id", loadData)
@@ -44,6 +44,13 @@ func main() {
 		apiGroup.Any("/upload", upload)
 		apiGroup.Any("/upload/:filename", upload)
 	}
+
+	r.NoRoute(func(c *gin.Context) {
+		if c.Request.Method != "PUT" {
+			c.Redirect(http.StatusFound, os.Getenv("REDIRECT_MAIN"))
+		}
+		return
+	}, authMiddleware, upload)
 
 	http.Handle("/", r)
 	appengine.Main()

@@ -88,6 +88,10 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 	} else {
 		uploadFile = c.Request.Body
 		filename = c.Param("filename")
+
+		if filename == "" {
+			filename = c.Request.URL.Path[1:]
+		}
 	}
 
 	storedFile := filename
@@ -99,7 +103,7 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 	exists := 0
 	for {
 		_, err := it.Next()
-		if err == iterator.Done || err == nil {
+		if err == iterator.Done {
 			break
 		} else {
 			exists++
@@ -130,7 +134,7 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 		return
 	}
 
-	url := c.Request.URL.Scheme + "://" + c.Request.URL.Host + "/u/" + token + "/" + filename
+	url := c.GetHeader("X-Forwarded-Proto") + "://" + c.Request.Host + "/u/" + token + "/" + filename
 
 	expireClicks := c.Query("clicks")
 	if expireClicks == "" {
@@ -160,7 +164,7 @@ func uploadPost(ctx context.Context, c *gin.Context) {
 	uploaded.Clicks = 0
 	uploaded.Clickers = make([]string, 0)
 	uploaded.Token = token
-	uploaded.Filename = filename
+	uploaded.Filename = storedFile
 	uploaded.ShortURL = url
 	uploaded.CreateTime = time.Now()
 	uploaded.ExpireClicks = expireClicksInt

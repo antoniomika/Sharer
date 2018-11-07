@@ -51,7 +51,7 @@ func shortenGet(ctx context.Context, c *gin.Context) {
 func shortenPost(ctx context.Context, c *gin.Context) {
 	token := RandStringBytesMaskImprSrc(6)
 
-	url := c.Request.URL.Scheme + "://" + c.Request.URL.Host + "/s/" + token
+	url := c.GetHeader("X-Forwarded-Proto") + "://" + c.Request.Host + "/s/" + token
 
 	expireClicks := c.Query("clicks")
 	if expireClicks == "" {

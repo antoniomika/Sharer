@@ -101,7 +101,7 @@ func authMiddleware(c *gin.Context) {
 
 	session, err := sessionStore.Get(c.Request, sessionName)
 	if err != nil {
-		returnErr(c, err, 0)
+		c.AbortWithError(http.StatusInternalServerError, err)
 		return
 	}
 
@@ -109,7 +109,6 @@ func authMiddleware(c *gin.Context) {
 		v := vRaw.(bool)
 
 		if v {
-			c.Next()
 			return
 		}
 	}
@@ -129,10 +128,12 @@ func authMiddleware(c *gin.Context) {
 
 			res["status"] = false
 
-			returnJSON(c, res, http.StatusUnauthorized)
-
+			c.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
 		}
+	} else if c.Request.Host == os.Getenv("SECRET_DOMAIN") {
+		c.Request.Host = os.Getenv("SHARE_HOSTNAME")
+		return
 	} else {
 		user := new(User)
 		key := datastore.NewKey(ctx, "User", "admin", 0, nil)
@@ -142,7 +143,7 @@ func authMiddleware(c *gin.Context) {
 				token, err := bcrypt.GenerateFromPassword([]byte(os.Getenv("ADMIN_PASS")), 14)
 
 				if err != nil {
-					returnErr(c, err, 0)
+					c.AbortWithError(http.StatusInternalServerError, err)
 					return
 				}
 
@@ -150,7 +151,7 @@ func authMiddleware(c *gin.Context) {
 				user.Password = string(token)
 
 				if _, err := datastore.Put(ctx, key, user); err != nil {
-					returnErr(c, err, 0)
+					c.AbortWithError(http.StatusInternalServerError, err)
 					return
 				}
 
@@ -162,20 +163,18 @@ func authMiddleware(c *gin.Context) {
 				key := datastore.NewKey(ctx, "User", string(newtoken), 0, nil)
 
 				if _, err := datastore.Put(ctx, key, user); err != nil {
-					returnErr(c, err, 0)
+					c.AbortWithError(http.StatusInternalServerError, err)
 					return
 				}
 			} else {
-				returnErr(c, err, 0)
+				c.AbortWithError(http.StatusInternalServerError, err)
 				return
 			}
 		} else {
 			res := make(map[string]interface{})
-
 			res["status"] = false
 
-			returnJSON(c, res, http.StatusUnauthorized)
-
+			c.AbortWithStatusJSON(http.StatusUnauthorized, res)
 			return
 		}
 	}
@@ -183,13 +182,10 @@ func authMiddleware(c *gin.Context) {
 	if !strings.Contains(strings.ToLower(c.Request.UserAgent()), "wget") && !strings.Contains(strings.ToLower(c.Request.UserAgent()), "curl") {
 		session.Values["loggedin"] = true
 		if err := session.Save(c.Request, c.Writer); err != nil {
-			returnErr(c, err, 0)
+			c.AbortWithError(http.StatusInternalServerError, err)
 			return
 		}
-
 	}
-
-	c.Next()
 }
 
 // RandStringBytesMaskImprSrc creates a random string of length n
@@ -272,5 +268,4 @@ func cleanupMiddleware(c *gin.Context) {
 			}
 		}
 	}
-	c.Next()
 }
